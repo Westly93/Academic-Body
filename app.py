@@ -1,7 +1,10 @@
 import streamlit as st
+from streamlit_modal import Modal
+import webbrowser
 import plotly.express as px
 import pandas as pd
-
+from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, JsCode, DataReturnMode
+from st_aggrid.grid_options_builder import GridOptionsBuilder
 st.set_page_config(layout="wide", page_icon=":bar_chat:",
                    page_title="Academic Body")
 hide_streamlit_styles = """
@@ -19,14 +22,10 @@ header{
 """
 
 
-def show_decision_table(data):
-    st.dataframe(data)
-
-
 @st.cache_data
 def load_dataframe():
     data = pd.read_csv("./data/data.csv")
-    # data = data.drop(columns=['Unnamed: 12', 'Unnamed: 13', 'ONGOING', '72'])
+    data = data.drop(columns=['mark.1', 'id'])
     return data
 
 
@@ -84,6 +83,7 @@ def main():
     )
     st.title(f"Faculty of {faculty}")
     st.markdown(f"### {programme}")
+
     col1, col2, col3 = st.columns(3, gap="small")
     with col1:
         attendance_types = data[(data['programme'] == programme)
@@ -112,22 +112,55 @@ def main():
         )
 
     st.markdown("---")
+
     filtered_data = data[(data['programme'] == programme)
                          & (data['faculty'] == faculty) & (data['attendancetype'] == attendance_type) & (data['academicyear'] == academic_year) & (data['semester'] == semester)]
     col1, col2 = st.columns([2, 3])
     with col1:
         pie_chart(filtered_data)
     with col2:
-        bar_graph(filtered_data)
+        if not filtered_data.empty:
+            bar_graph(filtered_data)
     st.markdown("#### Decisions")
+    # dialog = st.dialog("dialog_key_simplest_example")
     decisions = filtered_data.decision.unique().tolist()
+
     if len(decisions) > 0:
         for decision in decisions:
+
             students = filtered_data[filtered_data['decision']
                                      == decision].regnum.nunique()
             with st.expander(f'{decision} ({students})'):
-                show_data = st.dataframe(
-                    filtered_data[filtered_data['decision'] == decision])
+                filtered_df = filtered_data[filtered_data['decision'] == decision].drop(
+                    columns=['module', 'mark', 'grade', 'programmestatus', 'programmecode', 'surname', 'firstnames', 'programmetype'], axis=1)
+                # Select specific columns and drop duplicates based on 'regnum' column
+                selected_data = filtered_df.drop_duplicates(
+                    subset='regnum')
+                gd = GridOptionsBuilder.from_dataframe(selected_data)
+                gd.configure_pagination(enabled=True)
+                gd.configure_default_column(groupable=True)
+                gd.configure_selection(selection_mode='single')
+                # gd.configure_grid_options(onRowSelected=js, pre_selected_rows=[])
+                gridOptions = gd.build()
+
+                response = AgGrid(selected_data,
+                                  gridOptions=gridOptions,
+                                  enable_enterprise_modules=True,
+                                  # fit_columns_on_grid_load=True,
+                                  height=500,
+                                  width='100%',
+                                  # theme = "streamlit",
+                                  update_mode=GridUpdateMode.MODEL_CHANGED,
+                                  data_return_mode=DataReturnMode.AS_INPUT,
+                                  reload_data=True,
+                                  allow_unsafe_jscode=True,
+                                  theme='balham',
+                                  key=decision
+                                  )
+                if len(response['selected_rows']) > 0:
+                    regnum = response['selected_rows'][0]['regnum']
+                    webbrowser.open_new_tab(
+                        f'http://localhost:8501/student_info?regnum={regnum}')
 
 
 if __name__ == "__main__":
