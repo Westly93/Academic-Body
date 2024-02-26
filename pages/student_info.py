@@ -20,12 +20,13 @@ header{
 }
 </style>
 """
-data = load_dataframe()
 
 
 def student_info():
-
-    regnum = st.query_params.get_all('regnum')[0]
+    data = load_dataframe()
+    regnum = data.regnum.iloc[0]
+    if len(st.query_params.get_all('regnum')) > 0:
+        regnum = st.query_params.get_all('regnum')[0]
     df = data[data['regnum'] == regnum].drop_duplicates(subset='module')
     st.title(
         f"{df.firstnames.iloc[0]} {df.surname.iloc[0]}")

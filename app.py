@@ -1,11 +1,14 @@
 import streamlit as st
+import pickle
+from pathlib import Path
+import streamlit_authenticator as stauth
 from streamlit_modal import Modal
 import webbrowser
 import plotly.express as px
 import pandas as pd
 from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, JsCode, DataReturnMode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
-st.set_page_config(layout="wide", page_icon=":bar_chat:",
+st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_icon=":bar_chat:",
                    page_title="Academic Body")
 hide_streamlit_styles = """
 <style>
@@ -26,10 +29,12 @@ header{
 def load_dataframe():
     data = pd.read_csv("./data/data.csv")
     data = data.drop(columns=['mark.1', 'id'])
+    data = data.drop_duplicates(['regnum', 'module'], keep='last')
     return data
 
 
 def pie_chart(data):
+
     distribution_by_decision = data.groupby(
         by="decision")['regnum'].nunique()
     distribution_by_decision = distribution_by_decision.reset_index(
@@ -44,8 +49,28 @@ def pie_chart(data):
     st.plotly_chart(plot1, use_container_width=True)
 
 
+def pass_rate_distribution(data):
+    # number of students who passed
+
+    pass_rate = data.groupby('module')['mark'].apply(
+        lambda x: (x >= 50).mean() * 100)
+    pass_rate = pass_rate.reset_index(
+        name="pass_rate")
+    fig_pass_rate = px.bar(
+        pass_rate,
+        x="module",
+        y="pass_rate",
+        title="<b> Pass Rates By Module <b>",
+        color_discrete_sequence=["#0083B8"] * len(pass_rate),
+        template="plotly_white"
+
+    )
+    st.plotly_chart(fig_pass_rate)
+
+
 def bar_graph(data):
-    grouped_data = data.groupby(by=["grade"])['regnum'].nunique()
+
+    grouped_data = data.groupby(by=["grade"])['regnum'].count()
     grouped_data = grouped_data.reset_index(
         name="Students")
     fig_student_grades = px.bar(
@@ -119,13 +144,24 @@ def main():
     with col1:
         pie_chart(filtered_data)
     with col2:
+        modules = st.multiselect(
+            "Select Modules",
+            options=filtered_data['module'].unique(),
+            default=filtered_data["module"].unique()
+        )
         if not filtered_data.empty:
-            bar_graph(filtered_data)
-    st.markdown("#### Decisions")
+            bar_graph(filtered_data.query(
+                "module==@modules"))
+            # st.dataframe(filtered_data.query("module==@modules"))
+    st.markdown('---')
+    pass_rate_distribution(filtered_data)
+    st.markdown("---")
+
     # dialog = st.dialog("dialog_key_simplest_example")
     decisions = filtered_data.decision.unique().tolist()
 
     if len(decisions) > 0:
+        st.markdown("#### Decisions")
         for decision in decisions:
 
             students = filtered_data[filtered_data['decision']
@@ -134,23 +170,39 @@ def main():
                 filtered_df = filtered_data[filtered_data['decision'] == decision].drop(
                     columns=['module', 'mark', 'grade', 'programmestatus', 'programmecode', 'surname', 'firstnames', 'programmetype'], axis=1)
                 # Select specific columns and drop duplicates based on 'regnum' column
-                selected_data = filtered_df.drop_duplicates(
-                    subset='regnum')
-                gd = GridOptionsBuilder.from_dataframe(selected_data)
+                js = JsCode("""
+                    function(e) {
+                        var selectedRowData = e.api.getSelectedRows();
+                        var selectedIds = selectedRowData.map(function(row) {
+                            return row.id;
+                        });
+
+                        if (selectedRowData.length > 0 && e.data.regnum === selectedRowData[0]['regnum']) {
+                            return {
+                                color: 'black',
+                                backgroundColor: 'pink'
+                            };
+                        }
+                    }
+                    """)
+
+                gd = GridOptionsBuilder.from_dataframe(filtered_df)
                 gd.configure_pagination(enabled=True)
                 gd.configure_default_column(groupable=True)
                 gd.configure_selection(selection_mode='single')
-                # gd.configure_grid_options(onRowSelected=js, pre_selected_rows=[])
+                gd.configure_grid_options(
+                    onRowSelected=js, pre_selected_rows=[])
                 gridOptions = gd.build()
 
-                response = AgGrid(selected_data,
+                response = AgGrid(filtered_df.drop_duplicates(['regnum'], keep='last'),
                                   gridOptions=gridOptions,
                                   enable_enterprise_modules=True,
                                   # fit_columns_on_grid_load=True,
                                   height=500,
                                   width='100%',
                                   # theme = "streamlit",
-                                  update_mode=GridUpdateMode.MODEL_CHANGED,
+                                  update_mode=GridUpdateMode.SELECTION_CHANGED,
+                                  # update_mode=GridUpdateMode.MODEL_CHANGED,
                                   data_return_mode=DataReturnMode.AS_INPUT,
                                   reload_data=True,
                                   allow_unsafe_jscode=True,
@@ -159,9 +211,43 @@ def main():
                                   )
                 if len(response['selected_rows']) > 0:
                     regnum = response['selected_rows'][0]['regnum']
-                    webbrowser.open_new_tab(
-                        f'http://localhost:8501/student_info?regnum={regnum}')
+                    if not st.session_state.get('regnum'):
+                        st.session_state['regnum'] = regnum
+                        webbrowser.open_new_tab(
+                            f'http://localhost:8501/student_info?regnum={regnum}')
+                    else:
+                        if regnum != st.session_state.regnum:
+                            st.session_state['regnum'] = regnum
+                            webbrowser.open_new_tab(
+                                f'http://localhost:8501/student_info?regnum={regnum}')
+                    # response.clearSelectedRows()
+    else:
+        st.info("There are no decisions Available!!")
 
 
-if __name__ == "__main__":
+names = ['Westonmf', 'mukute', 'chaibva']
+usernames = ['westonmufudza@gmail.com',
+             'mukute@staff.msu.ac.zw', 'chaibvan@staff.msu.ac.zw']
+file_path = Path(__file__).parent / 'hashed_pw.pkl'
+with file_path.open('rb') as file:
+    hashed_passwords = pickle.load(file)
+
+credentials = {"usernames": {}}
+for index in range(len(names)):
+    credentials["usernames"][usernames[index]] = {
+        "name": names[index],
+        "password": hashed_passwords[index]
+    }
+
+authenticator = stauth.Authenticate(
+    credentials, cookie_name="streamlit", key="abcdef", cookie_expiry_days=30)
+name, authentication_status, username = authenticator.login("Login", "main")
+
+if authentication_status == False:
+    st.error("Invalid user credentials")
+if authentication_status is None:
+    st.warning("Please fill in the required fields")
+if authentication_status:
+    authenticator.logout("Logout", "sidebar")
+    st.sidebar.markdown(f"<h3> Hi {username}", unsafe_allow_html=True)
     main()
