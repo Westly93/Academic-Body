@@ -2,4 +2,4 @@ venv
 data
 /hashed_pw.pkl
 /generate_keys.py
-/credentials
+/credentials.py

@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_toggle import toggle
 import pickle
 from pathlib import Path
 import streamlit_authenticator as stauth
@@ -7,6 +8,7 @@ import webbrowser
 import plotly.express as px
 import pandas as pd
 from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, JsCode, DataReturnMode
+from streamlit_extras.metric_cards import style_metric_cards
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 st.set_page_config(layout="wide", initial_sidebar_state="collapsed", page_icon=":bar_chat:",
                    page_title="Academic Body")
@@ -31,6 +33,20 @@ def load_dataframe():
     data = data.drop(columns=['mark.1', 'id'])
     data = data.drop_duplicates(['regnum', 'module'], keep='last')
     return data
+
+
+def statistic_cards(data):
+    decisions = data.decision.unique().tolist()
+    cols = st.columns(len(decisions))
+
+    for i, x in enumerate(cols):
+        if decisions[i] == 'RETAKE' or decisions[i] == 'REPEAT' or decisions[i] == 'REPEAT LEVEL':
+            x.metric(label=f"{decisions[i]}",
+                     value=data[data['decision'] == decisions[i]].regnum.nunique(), delta=-data[data['decision'] == decisions[i]].regnum.nunique())
+        else:
+            x.metric(label=f"{decisions[i]}",
+                     value=data[data['decision'] == decisions[i]].regnum.nunique(), delta=data[data['decision'] == decisions[i]].regnum.nunique())
+    style_metric_cards()
 
 
 def pie_chart(data):
@@ -106,8 +122,14 @@ def main():
         programmes,
         index=programmes.index(default_programme)
     )
-    st.title(f"Faculty of {faculty}")
-    st.markdown(f"### {programme}")
+    st.title(f"{faculty}({data[data['faculty']== faculty].regnum.nunique()})")
+    statistic_cards(data[data['faculty'] == faculty])
+    # st.info(f"{data[data['faculty'] == faculty].regnum.nunique()} Students")
+    st.subheader(
+        f"{programme}({data[data['programme']==programme].regnum.nunique()})")
+    statistic_cards(data[data['programme'] == programme])
+    # st.info(
+    #    f"{data[data['programme'] == programme].regnum.nunique()} Students")
 
     col1, col2, col3 = st.columns(3, gap="small")
     with col1:
@@ -142,87 +164,78 @@ def main():
                          & (data['faculty'] == faculty) & (data['attendancetype'] == attendance_type) & (data['academicyear'] == academic_year) & (data['semester'] == semester)]
     col1, col2 = st.columns([2, 3])
     with col1:
-        pie_chart(filtered_data)
-    with col2:
-        modules = st.multiselect(
-            "Select Modules",
-            options=filtered_data['module'].unique(),
-            default=filtered_data["module"].unique()
-        )
-        if not filtered_data.empty:
-            bar_graph(filtered_data.query(
-                "module==@modules"))
-            # st.dataframe(filtered_data.query("module==@modules"))
-    st.markdown('---')
-    pass_rate_distribution(filtered_data)
-    st.markdown("---")
+        if len(filtered_data):
+            pie_chart(filtered_data)
+        else:
+            st.info("There is no data to display")
 
     # dialog = st.dialog("dialog_key_simplest_example")
-    decisions = filtered_data.decision.unique().tolist()
+    with col2:
+        decisions = filtered_data.decision.unique().tolist()
 
-    if len(decisions) > 0:
-        st.markdown("#### Decisions")
-        for decision in decisions:
+        if len(decisions) > 0:
+            st.markdown("#### Decisions")
+            for decision in decisions:
 
-            students = filtered_data[filtered_data['decision']
-                                     == decision].regnum.nunique()
-            with st.expander(f'{decision} ({students})'):
-                filtered_df = filtered_data[filtered_data['decision'] == decision].drop(
-                    columns=['module', 'mark', 'grade', 'programmestatus', 'programmecode', 'surname', 'firstnames', 'programmetype'], axis=1)
-                # Select specific columns and drop duplicates based on 'regnum' column
-                js = JsCode("""
-                    function(e) {
-                        var selectedRowData = e.api.getSelectedRows();
-                        var selectedIds = selectedRowData.map(function(row) {
-                            return row.id;
-                        });
+                students = filtered_data[filtered_data['decision']
+                                         == decision].regnum.nunique()
+                with st.expander(f'{decision} ({students})'):
+                    filtered_df = filtered_data[filtered_data['decision'] == decision].drop(
+                        columns=['module', 'mark', 'grade', 'programmestatus', 'programmecode', 'surname', 'firstnames', 'programmetype'], axis=1)
+                    # Select specific columns and drop duplicates based on 'regnum' column
+                    js = JsCode("""
+                        function(e) {
+                            var selectedRowData = e.api.getSelectedRows();
+                            var selectedIds = selectedRowData.map(function(row) {
+                                return row.id;
+                            });
 
-                        if (selectedRowData.length > 0 && e.data.regnum === selectedRowData[0]['regnum']) {
-                            return {
-                                color: 'black',
-                                backgroundColor: 'pink'
-                            };
+                            if (selectedRowData.length > 0 && e.data.regnum === selectedRowData[0]['regnum']) {
+                                return {
+                                    color: 'black',
+                                    backgroundColor: 'pink'
+                                };
+                            }
                         }
-                    }
-                    """)
+                        """)
 
-                gd = GridOptionsBuilder.from_dataframe(filtered_df)
-                gd.configure_pagination(enabled=True)
-                gd.configure_default_column(groupable=True)
-                gd.configure_selection(selection_mode='single')
-                gd.configure_grid_options(
-                    onRowSelected=js, pre_selected_rows=[])
-                gridOptions = gd.build()
+                    gd = GridOptionsBuilder.from_dataframe(filtered_df)
+                    gd.configure_pagination(enabled=True)
+                    gd.configure_default_column(groupable=True)
+                    gd.configure_selection(selection_mode='single')
+                    gd.configure_grid_options(
+                        onRowSelected=js, pre_selected_rows=[])
+                    gridOptions = gd.build()
 
-                response = AgGrid(filtered_df.drop_duplicates(['regnum'], keep='last'),
-                                  gridOptions=gridOptions,
-                                  enable_enterprise_modules=True,
-                                  # fit_columns_on_grid_load=True,
-                                  height=500,
-                                  width='100%',
-                                  # theme = "streamlit",
-                                  update_mode=GridUpdateMode.SELECTION_CHANGED,
-                                  # update_mode=GridUpdateMode.MODEL_CHANGED,
-                                  data_return_mode=DataReturnMode.AS_INPUT,
-                                  reload_data=True,
-                                  allow_unsafe_jscode=True,
-                                  theme='balham',
-                                  key=decision
-                                  )
-                if len(response['selected_rows']) > 0:
-                    regnum = response['selected_rows'][0]['regnum']
-                    if not st.session_state.get('regnum'):
-                        st.session_state['regnum'] = regnum
-                        webbrowser.open_new_tab(
-                            f'http://localhost:8501/student_info?regnum={regnum}')
-                    else:
-                        if regnum != st.session_state.regnum:
+                    response = AgGrid(filtered_df.drop_duplicates(['regnum'], keep='last'),
+                                      gridOptions=gridOptions,
+                                      enable_enterprise_modules=True,
+                                      # fit_columns_on_grid_load=True,
+                                      height=500,
+                                      width='100%',
+                                      # theme = "streamlit",
+                                      update_mode=GridUpdateMode.SELECTION_CHANGED,
+                                      # update_mode=GridUpdateMode.MODEL_CHANGED,
+                                      data_return_mode=DataReturnMode.AS_INPUT,
+                                      reload_data=True,
+                                      allow_unsafe_jscode=True,
+                                      theme='balham',
+                                      key=decision
+                                      )
+                    if len(response['selected_rows']) > 0:
+                        regnum = response['selected_rows'][0]['regnum']
+                        if not st.session_state.get('regnum'):
                             st.session_state['regnum'] = regnum
                             webbrowser.open_new_tab(
                                 f'http://localhost:8501/student_info?regnum={regnum}')
-                    # response.clearSelectedRows()
-    else:
-        st.info("There are no decisions Available!!")
+                        else:
+                            if regnum != st.session_state.regnum:
+                                st.session_state['regnum'] = regnum
+                                webbrowser.open_new_tab(
+                                    f'http://localhost:8501/student_info?regnum={regnum}')
+                        # response.clearSelectedRows()
+        else:
+            st.info("There are no decisions Available!!")
 
 
 names = ['Westonmf', 'mukute', 'chaibva']
