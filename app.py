@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_toggle import toggle
 import pickle
 from pathlib import Path
 import streamlit_authenticator as stauth
