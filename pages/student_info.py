@@ -5,22 +5,6 @@ from st_aggrid import AgGrid, GridUpdateMode
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 from app import load_dataframe
 
-st.set_page_config(layout="wide", page_icon=":bar_chat:",
-                   page_title="Academic Body")
-hide_streamlit_styles = """
-<style>
-#MainMenu{
-    visibility: hidden;
-}
-footer{
-    visibility: hidden;
-}
-header{
-    visibility: hidden;
-}
-</style>
-"""
-
 
 def student_info():
     data = load_dataframe()
