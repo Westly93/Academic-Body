@@ -243,9 +243,29 @@ def main():
                                          == decision].regnum.nunique()
                 with st.expander(f'{decision} ({students})'):
                     filtered_df = filtered_data[filtered_data['decision'] == decision]
-                    result = ag_grid(filtered_df[['regnum', 'firstnames', 'surname']].drop_duplicates(
-                        ['regnum'], keep='last'))
-                    if len(result['selected_rows']) > 0:
+
+                    gd = GridOptionsBuilder.from_dataframe(data)
+                    gd.configure_pagination(enabled=True)
+                    gd.configure_default_column(groupable=True)
+                    gd.configure_selection(selection_mode='single')
+                    gd.configure_grid_options(pre_selected_rows=[])
+                    gridOptions = gd.build()
+
+                    response = AgGrid(filtered_df[['regnum', 'firstnames', 'surname']].drop_duplicates(
+                        ['regnum'], keep='last'),
+                        gridOptions=gridOptions,
+                        enable_enterprise_modules=True,
+                        # fit_columns_on_grid_load=True,
+                        # theme = "streamlit",
+                        update_mode=GridUpdateMode.SELECTION_CHANGED,
+                        # update_mode=GridUpdateMode.MODEL_CHANGED,
+                        data_return_mode=DataReturnMode.AS_INPUT,
+                        reload_data=True,
+                        allow_unsafe_jscode=True,
+                        theme='balham',
+                    )
+
+                    if len(response['selected_rows']) > 0:
                         webbrowser.open_new_tab(
                             f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
                         # response.clearSelectedRows()
