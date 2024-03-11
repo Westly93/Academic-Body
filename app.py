@@ -177,12 +177,12 @@ def main():
             if not st.session_state.get('regnum'):
                 st.session_state['regnum'] = regnum
                 webbrowser.open_new_tab(
-                    f'http://localhost:8501/student_info?regnum={regnum}')
+                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
             else:
                 if regnum != st.session_state.regnum:
                     st.session_state['regnum'] = regnum
                     webbrowser.open_new_tab(
-                        f'http://localhost:8501/student_info?regnum={regnum}')
+                        f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
 
         st.info(
             f"{data[(data['faculty'] == faculty) & (data['decision']== decision)].regnum.nunique()} Students")
@@ -250,12 +250,12 @@ def main():
                         if not st.session_state.get('regnum'):
                             st.session_state['regnum'] = regnum
                             webbrowser.open_new_tab(
-                                f'http://localhost:8501/student_info?regnum={regnum}')
+                                f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
                         else:
                             if regnum != st.session_state.regnum:
                                 st.session_state['regnum'] = regnum
                                 webbrowser.open_new_tab(
-                                    f'http://localhost:8501/student_info?regnum={regnum}')
+                                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
                         # response.clearSelectedRows()
         else:
             st.info("There are no decisions Available!!")
