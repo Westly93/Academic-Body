@@ -246,16 +246,8 @@ def main():
                     result = ag_grid(filtered_df[['regnum', 'firstnames', 'surname']].drop_duplicates(
                         ['regnum'], keep='last'))
                     if len(result['selected_rows']) > 0:
-                        regnum = result['selected_rows'][0]['regnum']
-                        if not st.session_state.get('regnum'):
-                            st.session_state['regnum'] = regnum
-                            webbrowser.open_new_tab(
-                                f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
-                        else:
-                            if regnum != st.session_state.regnum:
-                                st.session_state['regnum'] = regnum
-                                webbrowser.open_new_tab(
-                                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                        webbrowser.open_new_tab(
+                            f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
                         # response.clearSelectedRows()
         else:
             st.info("There are no decisions Available!!")
