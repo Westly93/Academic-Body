@@ -100,6 +100,7 @@ def bar_graph(data):
 
     st.plotly_chart(fig_student_grades)
 
+
 def ag_grid(data):
     js = JsCode("""
                         function(e) {
@@ -122,32 +123,24 @@ def ag_grid(data):
     gd.configure_default_column(groupable=True)
     gd.configure_selection(selection_mode='single')
     gd.configure_grid_options(
-                        onRowSelected=js, pre_selected_rows=[])
+        onRowSelected=js, pre_selected_rows=[])
     gridOptions = gd.build()
 
     response = AgGrid(data,
-                                      gridOptions=gridOptions,
-                                      enable_enterprise_modules=True,
-                                      # fit_columns_on_grid_load=True,
-                                      # theme = "streamlit",
-                                      update_mode=GridUpdateMode.SELECTION_CHANGED,
-                                      # update_mode=GridUpdateMode.MODEL_CHANGED,
-                                      data_return_mode=DataReturnMode.AS_INPUT,
-                                      reload_data=True,
-                                      allow_unsafe_jscode=True,
-                                      theme='balham',
-                                      )
-    if len(response['selected_rows']) > 0:
-        regnum = response['selected_rows'][0]['regnum']
-        if not st.session_state.get('regnum'):
-            st.session_state['regnum'] = regnum
-            webbrowser.open_new_tab(
-                                f'http://localhost:8501/student_info?regnum={regnum}')
-        else:
-            if regnum != st.session_state.regnum:
-                st.session_state['regnum'] = regnum
-                webbrowser.open_new_tab(
-                                    f'http://localhost:8501/student_info?regnum={regnum}')
+                      gridOptions=gridOptions,
+                      enable_enterprise_modules=True,
+                      # fit_columns_on_grid_load=True,
+                      # theme = "streamlit",
+                      update_mode=GridUpdateMode.SELECTION_CHANGED,
+                      # update_mode=GridUpdateMode.MODEL_CHANGED,
+                      data_return_mode=DataReturnMode.AS_INPUT,
+                      reload_data=True,
+                      allow_unsafe_jscode=True,
+                      theme='balham',
+                      )
+    return response
+
+
 def main():
     st.markdown(hide_streamlit_styles, unsafe_allow_html=True)
 
@@ -171,20 +164,32 @@ def main():
     st.title(f"{faculty}({data[data['faculty']== faculty].regnum.nunique()})")
     statistic_cards(data[data['faculty'] == faculty])
     with st.expander(f'Faculty Decisions'):
-        decisions= data[data['faculty']== faculty].decision.unique().tolist()
+        decisions = data[data['faculty'] == faculty].decision.unique().tolist()
         decision = st.selectbox(
             'Select Decision',
             decisions,
             index=0
         )
-        ag_grid(data[(data['faculty']== faculty) & (data['decision']== decision)].drop_duplicates(subset='regnum')[['regnum', 'firstnames', 'surname']])
-        
-        
-        st.info(f"{data[(data['faculty'] == faculty) & (data['decision']== decision)].regnum.nunique()} Students")
+        response = ag_grid(data[(data['faculty'] == faculty) & (data['decision'] == decision)].drop_duplicates(
+            subset='regnum')[['regnum', 'firstnames', 'surname']])
+        if len(response['selected_rows']) > 0:
+            regnum = response['selected_rows'][0]['regnum']
+            if not st.session_state.get('regnum'):
+                st.session_state['regnum'] = regnum
+                webbrowser.open_new_tab(
+                    f'http://localhost:8501/student_info?regnum={regnum}')
+            else:
+                if regnum != st.session_state.regnum:
+                    st.session_state['regnum'] = regnum
+                    webbrowser.open_new_tab(
+                        f'http://localhost:8501/student_info?regnum={regnum}')
+
+        st.info(
+            f"{data[(data['faculty'] == faculty) & (data['decision']== decision)].regnum.nunique()} Students")
     st.subheader(
         f"{programme}({data[data['programme']==programme].regnum.nunique()})")
     statistic_cards(data[data['programme'] == programme])
-    
+
     # st.info(
     #    f"{data[data['programme'] == programme].regnum.nunique()} Students")
 
@@ -238,7 +243,19 @@ def main():
                                          == decision].regnum.nunique()
                 with st.expander(f'{decision} ({students})'):
                     filtered_df = filtered_data[filtered_data['decision'] == decision]
-                    ag_grid(filtered_df[['regnum', 'firstnames', 'surname']].drop_duplicates(['regnum'], keep='last'))
+                    result = ag_grid(filtered_df[['regnum', 'firstnames', 'surname']].drop_duplicates(
+                        ['regnum'], keep='last'))
+                    if len(result['selected_rows']) > 0:
+                        regnum = result['selected_rows'][0]['regnum']
+                        if not st.session_state.get('regnum'):
+                            st.session_state['regnum'] = regnum
+                            webbrowser.open_new_tab(
+                                f'http://localhost:8501/student_info?regnum={regnum}')
+                        else:
+                            if regnum != st.session_state.regnum:
+                                st.session_state['regnum'] = regnum
+                                webbrowser.open_new_tab(
+                                    f'http://localhost:8501/student_info?regnum={regnum}')
                         # response.clearSelectedRows()
         else:
             st.info("There are no decisions Available!!")
