@@ -2,8 +2,6 @@ import streamlit as st
 import pickle
 from pathlib import Path
 import streamlit_authenticator as stauth
-from streamlit_modal import Modal
-import webbrowser
 import plotly.express as px
 import pandas as pd
 from st_aggrid import AgGrid, GridUpdateMode, ColumnsAutoSizeMode, JsCode, DataReturnMode
@@ -176,13 +174,15 @@ def main():
             regnum = response['selected_rows'][0]['regnum']
             if not st.session_state.get('regnum'):
                 st.session_state['regnum'] = regnum
-                webbrowser.open_new_tab(
-                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                url = f"https://academicbody.streamlit.app/student_info?regnum={regnum}"
+                st.markdown(
+                    f"[Open Student Info](javascript:window.open('{url}'))")
             else:
                 if regnum != st.session_state.regnum:
                     st.session_state['regnum'] = regnum
-                    webbrowser.open_new_tab(
-                        f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                    url = f"https://academicbody.streamlit.app/student_info?regnum={regnum}"
+                    st.markdown(
+                        f"[Open Student Info](javascript:window.open('{url}'))")
 
         st.info(
             f"{data[(data['faculty'] == faculty) & (data['decision']== decision)].regnum.nunique()} Students")
@@ -249,13 +249,15 @@ def main():
                         regnum = result['selected_rows'][0]['regnum']
                         if not st.session_state.get('regnum'):
                             st.session_state['regnum'] = regnum
-                            webbrowser.open_new_tab(
-                                f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                            url = f"https://academicbody.streamlit.app/student_info?regnum={regnum}"
+                            st.markdown(
+                                f"[Open Student Info](javascript:window.open('{url}'))")
                         else:
                             if regnum != st.session_state.regnum:
                                 st.session_state['regnum'] = regnum
-                                webbrowser.open_new_tab(
-                                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                                url = f"https://academicbody.streamlit.app/student_info?regnum={regnum}"
+                                st.markdown(
+                                    f"[Open Student Info](javascript:window.open('{url}'))")
                         # response.clearSelectedRows()
         else:
             st.info("There are no decisions Available!!")
