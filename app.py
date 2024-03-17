@@ -68,7 +68,7 @@ def pass_rate_distribution(data):
     # number of students who passed
 
     pass_rate = data.groupby('module')['mark'].apply(
-        lambda x: (x >= 50).mean() * 100)
+        lambda x: (x >= 50).mean() * 100).sort_values(ascending=True)
     pass_rate = pass_rate.reset_index(
         name="pass_rate")
     fig_pass_rate = px.bar(
@@ -141,6 +141,25 @@ def ag_grid(data):
     return response
 
 
+def module_pass_rate(df):
+    module_pass_rate = df.groupby(
+        'module')['mark'].apply(lambda x: (x >= 50).mean() * 100).sort_values(ascending=True)
+    module_pass_rate = module_pass_rate.reset_index(
+        name="Pass Rate")
+    fig_module_pass_rate = px.bar(
+        module_pass_rate[:20],
+        x="module",
+        y="Pass Rate",
+        title=f"<b> Pass Rates by Module<b>",
+        # color='module',
+        # color_discrete_sequence=['red'] * len(module_pass_rate)
+        color_continuous_scale="reds"
+
+    )
+
+    st.plotly_chart(fig_module_pass_rate)
+
+
 def main():
     st.markdown(hide_streamlit_styles, unsafe_allow_html=True)
 
@@ -177,12 +196,12 @@ def main():
             if not st.session_state.get('regnum'):
                 st.session_state['regnum'] = regnum
                 webbrowser.open_new_tab(
-                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                    f'http://localhost:8501/student_info?regnum={regnum}')
             else:
                 if regnum != st.session_state.regnum:
                     st.session_state['regnum'] = regnum
                     webbrowser.open_new_tab(
-                        f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                        f'http://localhost:8501/student_info?regnum={regnum}')
 
         st.info(
             f"{data[(data['faculty'] == faculty) & (data['decision']== decision)].regnum.nunique()} Students")
@@ -192,7 +211,10 @@ def main():
 
     # st.info(
     #    f"{data[data['programme'] == programme].regnum.nunique()} Students")
+    with st.expander(f'Pass Rate accross Modules({programme})'):
 
+        module_pass_rate(data[(data['faculty'] == faculty) &
+                              (data['programme'] == programme)])
     col1, col2, col3 = st.columns(3, gap="small")
     with col1:
         attendance_types = data[(data['programme'] == programme)
@@ -250,12 +272,12 @@ def main():
                         if not st.session_state.get('regnum'):
                             st.session_state['regnum'] = regnum
                             webbrowser.open_new_tab(
-                                f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                                f'http://localhost:8501/student_info?regnum={regnum}')
                         else:
                             if regnum != st.session_state.regnum:
                                 st.session_state['regnum'] = regnum
                                 webbrowser.open_new_tab(
-                                    f'https://academicbody.streamlit.app/student_info?regnum={regnum}')
+                                    f'http://localhost:8501/student_info?regnum={regnum}')
                         # response.clearSelectedRows()
         else:
             st.info("There are no decisions Available!!")
